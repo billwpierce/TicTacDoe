@@ -56,6 +56,9 @@ class Doe():
         model.add(Dense(9, activation='relu'))
         model.add(Dense(9, activation='relu'))
         model.add(Dense(9, activation='relu'))
+        model.add(Dense(9, activation='relu'))
+        model.add(Dense(9, activation='relu'))
+        model.add(Dense(9, activation='relu'))
         model.compile(optimizer='rmsprop',
                       loss='categorical_crossentropy',
                       metrics=['accuracy'])
@@ -88,11 +91,17 @@ class Doe():
             self.memory.append((state, action, victory))
         self.short_term.clear()
 
-    def train():
+    def train(self):
+        training_data = random.sample(list(self.memory), self.batch_size)
+        states, actions, rewards = zip(*training_data)
+        target_rewards = np.array(self.model.predict(states))
+        for i in range(self.batch_size):
+            target_rewards[i, actions[i]] = rewards[i]
+        self.model.fit(states, target_rewards, epochs=1, verbose=0)
 
 
 if __name__ == "__main__":
-    print(DataFrame(board))
+    print(DataFrame(board.transpose()))
     state_size = np.array(board).shape
     agentOne = Doe(state_size)
     agentTwo = Doe(state_size)
