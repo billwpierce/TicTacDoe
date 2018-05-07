@@ -63,7 +63,17 @@ class Doe():
 
     def act(self, state):
         outcomes = self.model.predict(state)
-        selected = np.argmax(outcomes[0])
+        while True:
+            selected = np.argmax(outcomes[0])
+            row_action = (selected-1) % 3
+            column_action = (selected/3) - 1
+            if state[row_action][column_action] > 0:
+                if outcomes[0][np.argmax] == 0:
+                    break
+                else:
+                    outcomes[0][np.argmax] = 0
+            else:
+                break
         self.short_term.append((state, selected))
         return selected
 
