@@ -61,6 +61,7 @@ class Doe():
         self.short_term = deque(maxlen=5)
 
     def _build_model(self):
+        print(self.input_shape)
         model = Sequential()
         model.add(Dense(9, activation='relu',
                         kernel_initializer='random_uniform', input_shape=self.input_shape))
@@ -111,15 +112,16 @@ class Doe():
         training_data = random.sample(list(self.memory), self.batch_size)
         states, actions, rewards = zip(*training_data)
         states, actions, rewards = list(states), list(actions), list(rewards)
-        print(len(states))
         target_rewards = []
         for state in states:
-            target_rewards.append(self.model.predict(self.processState(state)))
-        print(np.array(target_rewards).shape)
+            target_rewards.append(self.model.predict(
+                self.processState(state))[0])
+            # print(self.model.predict(self.processState(state))[0])
         for i in range(self.batch_size):
-            print(target_rewards[i])
-            target_rewards[i][0][actions[i]] = rewards[i]
+            target_rewards[i][actions[i]] = rewards[i]
             states[i] = self.processState(states[i])
+        print(np.array(states).shape)
+        print(np.array(target_rewards).shape)
         self.model.fit(states, target_rewards, epochs=1, verbose=0)
 
     def processState(self, array):
