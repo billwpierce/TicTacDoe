@@ -1,11 +1,8 @@
 from pandas import *
 from pprint import pprint
 import numpy as np
-from collections import deque
-from keras.models import Sequential
-from keras.layers import Flatten, Dense, Conv2D, Input
-from keras.losses import categorical_crossentropy
-from keras.optimizers import rmsprop
+from doe import *
+from tac import *
 import math
 import time
 import random
@@ -14,7 +11,8 @@ board = np.zeros((3, 3), dtype=np.int8)
 magic_number = 9
 
 
-def personAct():
+def personAct(board):
+    copy = board
     while(True):
         try:
             location = [int(n) for n in (
@@ -28,7 +26,8 @@ def personAct():
             break
         except ValueError:
             print("Invalid Input: Indices must be integers.")
-    board[int(location[0])][int(location[1])] = 1
+    copy[int(location[1])][int(location[0])] = 2
+    return copy, int(location[1]), int(location[0])
 
 
 def CheckCat(board):
@@ -52,123 +51,85 @@ def CheckVictory(board, x, y):  # From https://codereview.stackexchange.com/ques
     return False
 
 
-class Doe():
-    def __init__(self, state_shape, hyperparams={'max_len': 2000, 'batch_size': 32}):
-        self.input_shape = state_shape
-        self.model = self._build_model()
-        self.batch_size = hyperparams['batch_size']
-        self.memory = deque(maxlen=hyperparams['max_len'])
-        self.short_term = deque(maxlen=5)
-
-    def _build_model(self):
-        print(self.input_shape)
-        model = Sequential()
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform', input_shape=self.input_shape))
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
-                        kernel_initializer='random_uniform'))
-        model.compile(optimizer='rmsprop',
-                      loss='categorical_crossentropy',
-                      metrics=['accuracy'])
-        return model
-
-    def act(self, state):
-        outcomes = self.model.predict(self.processState(state))
-        # print(state)
-        while True:
-            selected = np.argmax(outcomes[0])
-            row_action = (selected) % 3
-            column_action = math.ceil((selected+1)/3) - 1
-            if state[row_action][column_action] == 0:
-                break
-            else:
-                temp = np.argmax(outcomes[0])
-                outcomes[0][temp] -= 1
-                # print(state)
-        self.short_term.append((state, selected))
-        return (selected+1)
-
-    def fill_board(self, action, board, thisIndex):
-        row_action = (action-1) % 3
-        column_action = math.ceil(action/3) - 1
-        board[row_action][column_action] = thisIndex
-        return board, row_action, column_action
-
-    def remember_game(self, victory):
-        for state, selected in self.short_term:
-            self.memory.append((state, selected, victory))
-        self.short_term.clear()
-
-    def train(self):
-        # print(self.memory)
-        training_data = random.sample(list(self.memory), self.batch_size)
-        states, actions, rewards = zip(*training_data)
-        states, actions, rewards = list(states), list(actions), list(rewards)
-        target_rewards = []
-        for state in states:
-            target_rewards.append(self.model.predict(
-                self.processState(state))[0])
-            # print(self.model.predict(self.processState(state))[0])
-        for i in range(self.batch_size):
-            target_rewards[i][actions[i]] = rewards[i]
-            states[i] = self.processState(states[i])
-        print(np.array(states).shape)
-        print(np.array(target_rewards).shape)
-        self.model.fit(states, target_rewards, epochs=1, verbose=0)
-
-    def processState(self, array):
-        return array.reshape(1, magic_number)
-
-
 if __name__ == "__main__":
     print(DataFrame(board.transpose()))
     state_size = np.ravel(board).shape
     agentOne = Doe(state_size)
     agentTwo = Doe(state_size)
-    EPISODES = 100
+    EPISODES = 1000
     BATCH_SIZE = 32
     for e in range(EPISODES):
         while True:
-            # print("moving")
-            # print(DataFrame(board.transpose()))
-            # time.sleep(1)
             board, row_action, column_action = agentOne.fill_board(
                 agentOne.act(board), board, 1)
-            if CheckCat(board):
-                agentOne.remember_game(0)
-                agentTwo.remember_game(0)
-                board = np.zeros((3, 3), dtype=np.int8)
-                print("Cat game")
-                break
             if CheckVictory(board, row_action, column_action):
                 agentOne.remember_game(1)
                 agentTwo.remember_game(0)
                 board = np.zeros((3, 3), dtype=np.int8)
                 print("Agent One Wins")
                 break
-            board, row_action, column_action = agentTwo.fill_board(
-                agentTwo.act(board), board, 2)
             if CheckCat(board):
-                agentOne.remember_game(0)
-                agentTwo.remember_game(0)
+                agentOne.remember_game(0.25)
+                agentTwo.remember_game(0.25)
                 board = np.zeros((3, 3), dtype=np.int8)
                 print("Cat game")
                 break
+            board, row_action, column_action = agentTwo.fill_board(
+                agentTwo.act(board), board, 2)
             if CheckVictory(board, row_action, column_action):
                 agentOne.remember_game(0)
                 agentTwo.remember_game(1)
                 board = np.zeros((3, 3), dtype=np.int8)
                 print("Agent two Wins")
                 break
+            if CheckCat(board):
+                agentOne.remember_game(0.25)
+                agentTwo.remember_game(0.25)
+                board = np.zeros((3, 3), dtype=np.int8)
+                print("Cat game")
+                break
         if (e+1) % BATCH_SIZE == 0:
             agentOne.train()
             agentTwo.train()
             print("training")
+    print("DOOOONEE")
+    oneWins = 0
+    oneCats = 0
+    oneLosses = 0
+    randAgentTwo = Tac(2)
+    randAgentOne = Tac(1)
+
+    def printResults(Wins, Cats, Losses):
+        total = Wins + Cats + Losses
+        print("Win %: {:.2}, Cat %: {:.2}, Loss %: {:.2}".format(
+            Wins/total, Cats/total, Losses/total))
+    while True:
+        board, row_action, column_action = agentOne.fill_board(
+            agentOne.act(board), board, 1)
+        if CheckVictory(board, row_action, column_action):
+            oneLosses += 1
+            board = np.zeros((3, 3), dtype=np.int8)
+        if CheckCat(board):
+            oneCats += 1
+            board = np.zeros((3, 3), dtype=np.int8)
+        board, row_action, column_action = randAgentTwo.act(board)
+        if CheckVictory(board, row_action, column_action):
+            oneWins += 1
+            board = np.zeros((3, 3), dtype=np.int8)
+        if CheckCat(board):
+            oneCats += 1
+            board = np.zeros((3, 3), dtype=np.int8)
+        if oneWins % 100 == 99:
+            printResults(oneWins, oneCats, oneLosses)
+    # while True:
+    #     print(DataFrame(board.transpose()))
+    #     print("")
+    #     board, row_action, column_action = personAct(board)
+    #     if CheckCat(board) or CheckVictory(board, row_action, column_action):
+    #         board = np.zeros((3, 3), dtype=np.int8)
+    #     print(DataFrame(board.transpose()))
+    #     print("")
+    #     board, row_action, column_action = agentOne.fill_board(
+    #         agentOne.act(board), board, 1)
+    #     if CheckCat(board) or CheckVictory(board, row_action, column_action):
+    #         board = np.zeros((3, 3), dtype=np.int8)
