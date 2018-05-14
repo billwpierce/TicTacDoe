@@ -6,9 +6,30 @@ from tac import *
 import math
 import time
 import random
+from enum import Enum
 
 board = np.zeros((3, 3), dtype=np.int8)
 magic_number = 9
+
+
+def personAct(board):
+    print(DataFrame(board))
+    copy = board
+    while(True):
+        try:
+            location = [int(n) for n in (
+                input("Enter a movement location, in the form '0,1': ").split(','))]
+            if len(location) != 2:
+                print("Invalid Input: incorrect input shape.")
+            elif location[0] < 0 or location[0] > 2:
+                print("Invalid Input: first index out of range.")
+            elif location[1] < 0 or location[1] > 2:
+                print("Invalid Input: first index out of range.")
+            break
+        except ValueError:
+            print("Invalid Input: Indices must be integers.")
+    copy[int(location[1])][int(location[0])] = 2
+    return copy, int(location[1]), int(location[0])
 
 
 def CheckCat(board):
@@ -32,47 +53,77 @@ def CheckVictory(board, x, y):  # From https://codereview.stackexchange.com/ques
     return False
 
 
+class Results(Enum):
+    WIN = 1
+    CAT = 0
+    LOSS = -1  # Is this loss?
+
+
+def SimulateGameRandom(realAgent, randomAgent, testing):
+    board = np.zeros((3, 3), dtype=np.int8)
+    while True:
+        if testing:
+            board, row_action, column_action = realAgent.fill_board(
+                realAgent.actBest(board), board, 1)
+        else:
+            board, row_action, column_action = realAgent.fill_board(
+                realAgent.act(board), board, 1)
+        if CheckVictory(board, row_action, column_action):
+            return Results.WIN
+        if CheckCat(board):
+            return Results.CAT
+        board, row_action, column_action = randomAgent.act(board)
+        if CheckVictory(board, row_action, column_action):
+            return Results.LOSS
+        if CheckCat(board):
+            return Results.CAT
+
+
+def SimulateGameHuman(realAgent, personFunction):
+    board = np.zeros((3, 3), dtype=np.int8)
+    while True:
+        board, row_action, column_action = realAgent.fill_board(
+            realAgent.actBest(board), board, 1)
+        if CheckVictory(board, row_action, column_action):
+            return Results.WIN
+        if CheckCat(board):
+            return Results.CAT
+        board, row_action, column_action = personFunction(board)
+        if CheckVictory(board, row_action, column_action):
+            return Results.LOSS
+        if CheckCat(board):
+            return Results.CAT
+
+
 if __name__ == "__main__":
     print(DataFrame(board.transpose()))
     state_size = np.ravel(board).shape
     agentOne = Doe(state_size)
     agentTwo = Tac(2)
-    EPISODES = 1000000
+    EPISODES = 255168
     BATCH_SIZE = 32
-    PRINT_RATE = 250
-    recent_wins = 0
-    recent_losses = 0
-    recent_cats = 0
+    PRINT_RATE = 500
+    TEST_SIZE = 250
+    FIGHT_RATE = 10000
     for e in range(EPISODES):
-        while True:
-            board, row_action, column_action = agentOne.fill_board(
-                agentOne.act(board), board, 1)
-            if CheckVictory(board, row_action, column_action):
-                agentOne.remember_game(1)
-                board = np.zeros((3, 3), dtype=np.int8)
-                recent_wins += 1
-                break
-            if CheckCat(board):
-                agentOne.remember_game(0)
-                board = np.zeros((3, 3), dtype=np.int8)
-                recent_cats += 1
-                break
-            board, row_action, column_action = agentTwo.act(board)
-            if CheckVictory(board, row_action, column_action):
-                agentOne.remember_game(-1)
-                board = np.zeros((3, 3), dtype=np.int8)
-                recent_losses += 1
-                break
-            if CheckCat(board):
-                agentOne.remember_game(0)
-                board = np.zeros((3, 3), dtype=np.int8)
-                recent_cats += 1
-                break
+        result = SimulateGameRandom(agentOne, agentTwo, False)
+        agentOne.remember_game(result.value)
         if (e+1) % BATCH_SIZE == 0:
             agentOne.train()
         if (e+1) % PRINT_RATE == 0:
-            print("Win %: {:.2}, Loss %: {:.2}, Cat %: {:.2}, E: {:.2}".format(recent_wins/PRINT_RATE,
-                                                                               recent_losses/PRINT_RATE, recent_cats/PRINT_RATE, agentOne.exploration))
             recent_wins = 0
             recent_losses = 0
             recent_cats = 0
+            for i in range(TEST_SIZE):
+                result = SimulateGameRandom(agentOne, agentTwo, True)
+                agentOne.remember_game(result.value)
+                if result == Results.WIN:
+                    recent_wins += 1
+                if result == Results.CAT:
+                    recent_cats += 1
+                if result == Results.LOSS:
+                    recent_losses += 1
+            print("Win %: {:.2}, Loss %: {:.2}, Cat %: {:.2}, E: {:.2}".format(recent_wins/TEST_SIZE,
+                                                                               recent_losses/TEST_SIZE, recent_cats/TEST_SIZE, agentOne.exploration))
+        if (e+1) % FIGHT_RATE == 0:
+            SimulateGameHuman(agentOne, personAct)

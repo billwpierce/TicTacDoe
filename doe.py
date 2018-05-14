@@ -12,7 +12,7 @@ magic_number = 9
 
 
 class Doe():
-    def __init__(self, state_shape, hyperparams={'max_len': 2000, 'batch_size': 32, 'exploration_init': 1.0, 'exploration_fin': 0.005, 'exploration_decay': 0.9999}):
+    def __init__(self, state_shape, hyperparams={'max_len': 2000, 'batch_size': 32, 'exploration_init': 1.0, 'exploration_fin': 0.005, 'exploration_decay': 0.999}):
         self.input_shape = state_shape
         self.model = self._build_model()
         self.batch_size = hyperparams['batch_size']
@@ -63,6 +63,20 @@ class Doe():
                 else:
                     temp = np.argmax(outcomes[0])
                     outcomes[0][temp] -= 1
+        self.short_term.append((state, selected))
+        return (selected+1)
+
+    def actBest(self, state):
+        outcomes = self.model.predict(self.processState(state))
+        while True:
+            selected = np.argmax(outcomes[0])
+            row_action = (selected) % 3
+            column_action = math.ceil((selected+1)/3) - 1
+            if state[row_action][column_action] == 0:
+                break
+            else:
+                temp = np.argmax(outcomes[0])
+                outcomes[0][temp] -= 1
         self.short_term.append((state, selected))
         return (selected+1)
 
