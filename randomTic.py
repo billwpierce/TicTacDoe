@@ -61,6 +61,12 @@ class Results(Enum):
 
 def SimulateGameRandom(realAgent, randomAgent, testing):
     board = np.zeros((3, 3), dtype=np.int8)
+    if np.random.randint(0, 2) == 0:
+        board, row_action, column_action = randomAgent.act(board)
+        if CheckVictory(board, row_action, column_action):
+            return Results.LOSS
+        if CheckCat(board):
+            return Results.CAT
     while True:
         if testing:
             board, row_action, column_action = realAgent.fill_board(
@@ -81,6 +87,12 @@ def SimulateGameRandom(realAgent, randomAgent, testing):
 
 def SimulateGameHuman(realAgent, personFunction):
     board = np.zeros((3, 3), dtype=np.int8)
+    if np.random.randint(0, 2) == 0:
+        board, row_action, column_action = personFunction(board)
+        if CheckVictory(board, row_action, column_action):
+            return Results.LOSS
+        if CheckCat(board):
+            return Results.CAT
     while True:
         board, row_action, column_action = realAgent.fill_board(
             realAgent.actBest(board), board, 1)
@@ -102,9 +114,9 @@ if __name__ == "__main__":
     agentTwo = Tac(2)
     EPISODES = 255168
     BATCH_SIZE = 32
-    PRINT_RATE = 500
-    TEST_SIZE = 250
-    FIGHT_RATE = 10000
+    PRINT_RATE = 1000
+    TEST_SIZE = 100
+    FIGHT_RATE = 100000
     for e in range(EPISODES):
         result = SimulateGameRandom(agentOne, agentTwo, False)
         agentOne.remember_game(result.value)
@@ -116,7 +128,6 @@ if __name__ == "__main__":
             recent_cats = 0
             for i in range(TEST_SIZE):
                 result = SimulateGameRandom(agentOne, agentTwo, True)
-                agentOne.remember_game(result.value)
                 if result == Results.WIN:
                     recent_wins += 1
                 if result == Results.CAT:

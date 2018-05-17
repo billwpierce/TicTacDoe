@@ -12,7 +12,7 @@ magic_number = 9
 
 
 class Doe():
-    def __init__(self, state_shape, hyperparams={'max_len': 2000, 'batch_size': 32, 'exploration_init': 1.0, 'exploration_fin': 0.005, 'exploration_decay': 0.999}):
+    def __init__(self, state_shape, hyperparams={'max_len': 2000, 'batch_size': 32, 'exploration_init': 1.0, 'exploration_fin': 0.005, 'exploration_decay': .9997}):
         self.input_shape = state_shape
         self.model = self._build_model()
         self.batch_size = hyperparams['batch_size']
@@ -28,13 +28,13 @@ class Doe():
         model = Sequential()
         model.add(Dense(9, activation='relu',
                         kernel_initializer='random_uniform', input_shape=self.input_shape))
-        model.add(Dense(9, activation='relu',
+        model.add(Dense(18, activation='relu',
                         kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
+        model.add(Dense(90, activation='relu',
                         kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
+        model.add(Dense(180, activation='relu',
                         kernel_initializer='random_uniform'))
-        model.add(Dense(9, activation='relu',
+        model.add(Dense(90, activation='relu',
                         kernel_initializer='random_uniform'))
         model.add(Dense(9, activation='relu',
                         kernel_initializer='random_uniform'))
