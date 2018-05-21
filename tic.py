@@ -167,14 +167,33 @@ if __name__ == "__main__":
     agentOne = Doe(state_size, hyperparams=hyperparams)
     randTwo = Tac(2)
     hyperparams = {'max_len': 2000, 'batch_size': 32, 'exploration_init': 1.0,
-                   'exploration_fin': 0.005, 'exploration_decay': 0.999}
+                   'exploration_fin': 0.005, 'exploration_decay': 0.9999}
     agentTwo = Doe(state_size, hyperparams=hyperparams)
     randOne = Tac(1)
+    ORIGINAL_EPISODES = 20000
     EPISODES = 255168
     BATCH_SIZE = 32
-    PRINT_RATE = 1000
-    TEST_SIZE = 250
+    PRINT_RATE = 4000
+    TEST_SIZE = 1000
     FIGHT_RATE = 100000
+    for e in range(ORIGINAL_EPISODES):
+        result = SimulateGameRandom(agentOne, randTwo, False, 1)
+        agentOne.remember_game(result.value)
+        result = SimulateGameRandom(agentTwo, randOne, False, 2)
+        agentTwo.remember_game(result.value)
+        if (e+1) % BATCH_SIZE == 0:
+            agentOne.train()
+            agentTwo.train()
+        if (e+1) % PRINT_RATE == 0:
+            wins, losses, cats, total = testAgent(
+                agentOne, randTwo, 1, TEST_SIZE)
+            print("AGENT ONE - Win %: {:.2}, Loss %: {:.2}, Cat %: {:.2}, E: {:.2}".format(
+                wins/total, losses/total, cats/total, agentOne.exploration))
+            wins, losses, cats, total = testAgent(
+                agentTwo, randOne, 2, TEST_SIZE)
+            print("AGENT TWO - Win %: {:.2}, Loss %: {:.2}, Cat %: {:.2}, E: {:.2}".format(
+                wins/total, losses/total, cats/total, agentTwo.exploration))
+    print("--------------------------------------SWITCHING--------------------------------------")
     for e in range(EPISODES):
         resultOne, resultTwo = SimulateGameMachine(agentOne, agentTwo, False)
         agentOne.remember_game(resultOne.value)
